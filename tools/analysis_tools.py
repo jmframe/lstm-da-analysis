@@ -44,7 +44,7 @@ def DIFFS(diffs_inputs):
     else:
         return diffs
 
-def PLOT(diffs_inputs, diffs, plot_inputs): 
+def PLOT_MAPS(diffs_inputs, diffs, plot_inputs): 
     (basin_list, 
          ensemble_metrics,
          control, 
@@ -137,3 +137,66 @@ def CORR(corr_inputs):
             control_m = np.array(ensemble_metrics[metric, control])
             corrs[t, m] = st.stats.pearsonr(control_m, test_m)[0]
     return pd.DataFrame(data=corrs, index=model_types, columns=metrics)
+
+
+# Calculate the flow catagories of observations
+def FLOW_CAT(basin_list, flow_categories, observations, date_range):
+    flow_dates = {fc:{b:[] for b in basin_list} for fc in flow_categories}
+
+    for ib, b in enumerate(basin_list):  
+        df = observations[b]
+
+        for i_date, today in enumerate(date_range):
+            # For a baseline also evaluate the whole record
+            flow_dates['all'][b].append(today)
+
+            # Rising and falling limbs
+            if i_date>0:
+                yesterday =  date_range[i_date-1]
+                diff_1d = df.loc[today]-df.loc[yesterday]
+                if diff_1d < 0:
+                    flow_dates['fall'][b].append(today)
+                if diff_1d > 0:
+                    flow_dates['rise'][b].append(today)
+
+            # Above or below Median
+            if df.loc[today] > np.median(df):
+                flow_dates['above_mid'][b].append(today)
+            else:
+                flow_dates['below_mid'][b].append(today)
+
+            # Above or below Mean
+            if df.loc[today] > np.mean(df):
+                flow_dates['above_mean'][b].append(today)
+            else:
+                flow_dates['below_mean'][b].append(today)
+
+            # Above or below 20th/80th percentile
+            if df.loc[today] > np.percentile(df, 80):
+                flow_dates['above_80'][b].append(today)
+            elif df.loc[today] < np.percentile(df, 20):
+                flow_dates['below_20'][b].append(today) 
+
+    return flow_dates
+
+def PLOT_FREQ(basin_list, ensemble_metrics, metrics, model_types, met_lims):
+    yvalues = list(range(len(basin_list)))
+    for i, _ in enumerate(yvalues):
+        yvalues[i] = yvalues[i]/len(yvalues)
+    
+    for m, metric in enumerate(metrics):
+        x = [np.array(ensemble_metrics[metric, model]) for model in model_types]
+        
+        for imod, X in enumerate(x):
+            plotdata = X
+            plotdata = np.sort(plotdata[~pd.isnull(plotdata)])
+            plt.plot(plotdata,  yvalues[:len(plotdata)], label=model_types[imod], lw=2)
+            plt.title(metric)
+            plt.ylabel('Frequency')
+        plt.xlim(met_lims[metric])
+        plt.grid()
+        plt.legend()
+        plt.show()
+        plt.close()
+    
+    fig.tight_layout()
