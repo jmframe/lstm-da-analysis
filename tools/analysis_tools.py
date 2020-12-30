@@ -80,6 +80,8 @@ def PLOT(analysis_inputs, diffs, plot_inputs):
         ax1.grid()
 
     plt.tight_layout()
+    plt.show()
+    plt.close()
 
 def COUNT(analysis_inputs, diffs, 
           threshold=1, verbose=True):
