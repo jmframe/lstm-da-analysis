@@ -2,18 +2,32 @@
 Tools for analyzing the LSTM Data Assimilation results across the CAMELS basins
 """
 
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import metrics
+import signatures
+import corrstats #https://github.com/psinger/CorrelationStats/blob/master/corrstats.py
 
-def DIFFS(analysis_inputs):
+import scipy
+import scipy.stats as st
+import statsmodels as sm
+
+# For the regression.
+from sklearn.model_selection import KFold
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+
+
+def DIFFS(diffs_inputs):
     (basin_list, 
           ensemble_metrics,
           control, 
           test,
           use_metrics, 
           optimal,
-          percent) = analysis_inputs
+          percent) = diffs_inputs
     diffs = np.full([len(basin_list),len(use_metrics)], np.nan)
     percent_diffs = np.full([len(basin_list),len(use_metrics)], np.nan)
     for m, metric in enumerate(use_metrics):
@@ -30,14 +44,14 @@ def DIFFS(analysis_inputs):
     else:
         return diffs
 
-def PLOT(analysis_inputs, diffs, plot_inputs): 
+def PLOT(diffs_inputs, diffs, plot_inputs): 
     (basin_list, 
          ensemble_metrics,
          control, 
          test,
          use_metrics, 
          optimal,
-         percent) = analysis_inputs
+         percent) = diffs_inputs
     (display_bounds_from_control,
          display_colors_from_control, 
          disp_bounds,
@@ -83,7 +97,7 @@ def PLOT(analysis_inputs, diffs, plot_inputs):
     plt.show()
     plt.close()
 
-def COUNT(analysis_inputs, diffs, 
+def COUNT(diffs_inputs, diffs, 
           threshold=1, verbose=True):
     (basin_list, 
           ensemble_metrics,
@@ -91,7 +105,7 @@ def COUNT(analysis_inputs, diffs,
           test,
           use_metrics, 
           optimal,
-          percent) = analysis_inputs
+          percent) = diffs_inputs
     for m, metric in enumerate(use_metrics):
         count_improved = 0
         count_detriment = 0
@@ -113,3 +127,13 @@ def COUNT(analysis_inputs, diffs,
             if metric == 'NSE':
                 return count_improved/count_total
 
+# Correlation of base model performance with model variations
+def CORR(corr_inputs):
+    (ensemble_metrics, control, model_types, metrics) = corr_inputs
+    corrs = np.full([len(model_types), len(metrics)], np.nan)
+    for t, test in enumerate(model_types):
+        for m, metric in enumerate(metrics):
+            test_m = np.array(ensemble_metrics[metric, test])
+            control_m = np.array(ensemble_metrics[metric, control])
+            corrs[t, m] = st.stats.pearsonr(control_m, test_m)[0]
+    return pd.DataFrame(data=corrs, index=model_types, columns=metrics)
