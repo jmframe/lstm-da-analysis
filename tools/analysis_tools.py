@@ -4,6 +4,7 @@ Tools for analyzing the LSTM Data Assimilation results across the CAMELS basins
 
 import pandas as pd
 import numpy as np
+import xarray as xr
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import metrics
@@ -198,5 +199,80 @@ def PLOT_FREQ(basin_list, ensemble_metrics, metrics, model_types, met_lims):
         plt.legend()
         plt.show()
         plt.close()
+
+
+
+def FLOW_METRICS(observations,
+                 simulations,
+                 calc_metrics,
+                 basin_list,
+                 model_types,
+                 flow_categories, flow_dates):
+    nmets = len(calc_metrics)
+    nbasins = len(basin_list)
+    nmodels = len(model_types)
+    obs_model_types = ['obs'] + list(model_types)
     
-    fig.tight_layout()
+    met_mat = {fc:np.full([nbasins,nmodels,nmets],np.nan) for fc in flow_categories}
+
+    flow_mat = {fc:{mt:[] for mt in obs_model_types} for fc in flow_categories}
+
+    did_not_calculate = []
+
+    # Loop through the basins and calculate the performance metric.
+    for ib, b in enumerate(basin_list):   #['02216180']):
+        # Keep a record of any infinities that come out of performance metric calculations.
+        basin_inf = {fc:[] for fc in model_types}
+
+        # Loop through the flow categories, and calculate the performance metrics.
+        # Any flow category that is split up by percentile 
+        for fc in flow_categories:
+            
+            flow_set = flow_dates[fc][b]
+            
+            #Check for NaNs
+            # Start by checking if there is a nan somewhere in the obs or sims
+            if observations[b].isnull().values.any():
+                flow_set = [fs for fs in flow_set if not pd.isna(observations[b].loc[fs])]
+            if simulations[b].isnull().values.any():
+                # If there is a NaN somewhere, then check each value and replace 
+                for imt, model_type in enumerate(model_types):
+                    flow_set = [fs for fs in flow_set if not pd.isna(simulations[b][model_type].loc[fs])]
+            
+            xobs = xr.DataArray(observations[b].loc[flow_set]).rename({'dim_0': 'date'})
+            flow_mat[fc]['obs'].extend(list(observations[b].loc[flow_set]))
+
+            # Do not calculate the metrics on the basins that have a mean close to zero.
+            # This will lead to -inf or very low (-100xxx) Nash-Sutcliffe values.
+            if np.mean(observations[b].loc[flow_set]) > 0:
+                is_calc_metrics = True
+            else:
+                is_calc_metrics = False
+                did_not_calculate.append([b,fc])
+
+            # 1) combined flows from all basins into one dictionary, for overall metrics
+            # 2) Calculate the metrics for each model type.
+            for imt, model_type in enumerate(model_types):
+                
+                # Combine all the basins so the metrics can be calculated across them all at once.
+                # Model must have at least some criteria of values to calculate the metrics
+                if len(list(simulations[b][model_type].loc[flow_set])) >10:
+                    flow_mat[fc][model_type].extend(list(simulations[b][model_type].loc[flow_set]))
+                else:
+                    did_not_calculate.append([b,fc, model_type])
+                    
+                # Now just put the curent basin's flow into an xarray to get the metrics for this basin alone.
+                xsim = xr.DataArray(simulations[b][model_type].loc[flow_set]).rename({'dim_0': 'date'})
+                
+                if is_calc_metrics:
+                    met_dict = metrics.calculate_metrics(xobs, xsim, calc_metrics)
+                    for imet, met_name in enumerate(calc_metrics):
+                        if np.isinf(met_dict[met_name]):
+                                basin_inf[model_type].append([b, met_name])
+                        met_mat[fc][ib,imt,imet] = met_dict[met_name]
+                        
+    sites_that_did_not_calculate = []
+    for i in did_not_calculate:
+        if i[0] not in sites_that_did_not_calculate:
+            sites_that_did_not_calculate.append(i[0])
+    print('Some/all flow regime metrics did not calculate at these sites:', sites_that_did_not_calculate)

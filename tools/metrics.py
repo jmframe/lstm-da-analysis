@@ -349,8 +349,8 @@ def calculate_metrics(obs: DataArray, sim: DataArray, metrics: list) -> dict:
                 values["Alpha-NSE"] = alpha_nse(obs, sim)
             elif metric.lower() == "beta-nse":
                 values["Beta-NSE"] = beta_nse(obs, sim)
-            elif metric.lower().replace(" ", "") == "pearsonr":
-                values["Pearson r"] = pearsonr(obs, sim)
+            elif metric.lower().replace("-", "") == "pearsonr":
+                values["Pearson-r"] = pearsonr(obs, sim)
             elif metric.lower() == "fhv":
                 values["FHV"] = fdc_fhv(obs, sim)
             elif metric.lower() == "fms":

@@ -4,3 +4,5 @@ __pycache__/*
 tools/__pycache__/*
 *.pyc
 *cpython*
+z_old/*
+z_trash/*
