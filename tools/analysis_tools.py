@@ -276,3 +276,5 @@ def FLOW_METRICS(observations,
         if i[0] not in sites_that_did_not_calculate:
             sites_that_did_not_calculate.append(i[0])
     print('Some/all flow regime metrics did not calculate at these sites:', sites_that_did_not_calculate)
+
+    return flow_mat, met_mat
