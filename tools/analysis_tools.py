@@ -278,3 +278,19 @@ def FLOW_METRICS(observations,
     print('Some/all flow regime metrics did not calculate at these sites:', sites_that_did_not_calculate)
 
     return flow_mat, met_mat
+
+
+def NSE(obs, sim):
+    diff1 = obs - sim
+    diff2 = obs - np.mean(obs)
+    numer = np.nanmean(np.power(diff1,2))
+    denom = np.nanmean(np.power(diff2,2))
+    return 1-numer/denom
+def BIAS(obs, sim):
+    sum_obs = np.sum(obs)
+    sum_sim = np.sum(sim)
+    return sum_obs - sum_sim
+def BETA_NSE(obs, sim):
+    return float((sim.mean() - obs.mean()) / obs.std())
+def ALPHA_NSE(obs, sim):
+    return float(sim.std() / obs.std())
