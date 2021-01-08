@@ -294,3 +294,11 @@ def BETA_NSE(obs, sim):
     return float((sim.mean() - obs.mean()) / obs.std())
 def ALPHA_NSE(obs, sim):
     return float(sim.std() / obs.std())
+
+
+def WILCOXON(fc, column, model_types):
+    p_stats = []
+    for i in range(len(model_types)):
+        stat, p = st.wilcoxon(met_mat[fc][:,i+1,column], met_mat[fc][:,0,column])
+        p_stats.append(p)
+    return p_stats
